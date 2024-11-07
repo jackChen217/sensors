@@ -71,20 +71,39 @@ using namespace vex;
 
 vex::brain       Brain;
 
-vex::motor LeftMotorA(PORT11, gearSetting::ratio18_1, true);
+vex::motor LeftMotorA(PORT12, gearSetting::ratio18_1, true);
 vex::motor RightMotorA(PORT20, gearSetting::ratio18_1, true);
-vex::motor Arm(PORT19, gearSetting::ratio18_1, false);
-vex::motor FrontArm(PORT15, gearSetting::ratio18_1, true);
+vex::motor Arm(PORT19, gearSetting::ratio36_1, false);
+vex::motor FrontArm(PORT1, gearSetting::ratio18_1, true);
+//Color
+// Gear ratio 
+// Best used for
 
+// Red
+// 36:1 (100 rpm)
+// High torque, low speed; lifting arms, moving claws
+
+// Green
+// 18:1 (200 rpm)
+// Standard gear ratio for drivetrain applications
+
+// Blue
+// 6:1 (600 rpm)
+// Low torque, high speed; intake rollers, flywheels
+
+
+
+ 
+// Create a new Color Signature "Red" with the Colordesc class.
+// the way i gets these numbers, go to  https://codev5.vex.com/ and set color, and use a online color picker to get the code
+//  id, red, green, blue, hue , Saturation 
 
 vision::signature RedSig = vision::signature(1, 7099, 10703, 8901, -1405, -869, -1137, 2.5, 0);
 vision::signature BlueSig = vision::signature(2, -3083, -2597, -2840, 1689, 2335, 2012, 2.5, 0);
 
-// Create a new Color Signature "Red" with the Colordesc class.
-// the way i gets these numbers, go to  https://codev5.vex.com/ and set color, and use a online color picker to get the code
-//  id, red, green, blue, hue , Saturation 
-aivision::colordesc redRing (0,     228,      37,     98,   11.00,    0.31);
-aivision::colordesc blueRing = aivision::colordesc(1, 50, 165, 210, 10.00, 0.20);
+/// @brief **********************
+aivision::colordesc redRing (1,     228,      37,     98,   11.00,    0.31);
+aivision::colordesc blueRing = aivision::colordesc(2, 50, 165, 210, 10.00, 0.20);
 
 class colordesc {
 public:
@@ -97,7 +116,7 @@ std::array<aivision::colordesc, 2> colors = { redRing, blueRing };
 
 
 
-aivision aiVision1 = aivision(PORT3, redRing, blueRing);
+aivision aiVision1 = aivision(PORT2, redRing, blueRing);
 
 
 vex::controller Controller1 = controller(primary);
@@ -161,9 +180,13 @@ void rightDrive(double speed) {
 
 void arcadeDrive(double forwardValue, double turningValue) {
   if (abs(forwardValue) < 10) {
+      // if (abs(forwardValue) < 10) {
+
     forwardValue = 0;
   }
   if (abs(turningValue) < 10) {
+    //same here line164
+
     turningValue = 0;
   }
   leftDrive(forwardValue + turningValue);
@@ -172,6 +195,8 @@ void arcadeDrive(double forwardValue, double turningValue) {
 
 void tankDrive(double leftForward, double rightForward){
   if (abs(leftForward) < 10) {
+      // if (abs(leftForward) < 10) {
+
     leftForward = 0;
   }
   if (abs(rightForward) < 10) {
@@ -191,8 +216,23 @@ void armDown(){
   Arm.spin(reverse);
 }
 void armControl(){
-  Controller1.ButtonR1.pressed(armUp),Controller1.ButtonR2.pressed(armDown);
-} 
+    if(Controller1.ButtonR1.pressing())
+  {
+      Arm.spin(vex::directionType::fwd, 100, vex::velocityUnits::pct);
+  }
+
+  else if(Controller1.ButtonR2.pressing())
+  {
+      Arm.spin(vex::directionType::rev, 100, vex::velocityUnits::pct);
+  }
+  else 
+  {
+    Arm.spin(vex::directionType::fwd, 0, vex::velocityUnits::pct);
+  }
+}
+
+
+
 void fArmUp(){
   //FrontArm.spinFor(forward,60, degrees, true);
   FrontArm.spin(forward);
@@ -202,27 +242,80 @@ void fArmDown(){
   FrontArm.spin(reverse);
 }
 void frontArmControl(){
-  Controller1.ButtonL1.pressed(fArmUp),Controller1.ButtonL2.pressed(fArmDown);
+      if(Controller1.ButtonL1.pressing())
+  {
+      FrontArm.spin(vex::directionType::fwd, 100, vex::velocityUnits::pct);
+  }
+
+  else if(Controller1.ButtonL2.pressing())
+  {
+      FrontArm.spin(vex::directionType::rev, 100, vex::velocityUnits::pct);
+  }
+  else 
+  {
+    FrontArm.spin(vex::directionType::fwd, 0, vex::velocityUnits::pct);
+  }
 }
  
 // parameter takes a index from "colors" array
-void  aiObjCount(int index){
-  aiVision1.takeSnapshot(colors[index]);
-  Brain.Screen.clearScreen();
-  Brain.Screen.setCursor(1, 1);
-  Brain.Screen.print("Object Count: %d", aiVision1.objectCount);
-}
+// void  aiObjCount(int index){
+//   aiVision1.takeSnapshot(colors[index]);
+//   Brain.Screen.clearScreen();
+//   Brain.Screen.setCursor(1, 1);
+//   Brain.Screen.print("Object Count: %d", aiVision1.objectCount);
+// }
 
+//now
+void aiGetXPos( ){
+  // aiVision1.takeSnapshot(colors[index]);
+  aiVision1.takeSnapshot(aivision::ALL_COLORS );
 
-void aiGetXPos(int index){
-  aiVision1.takeSnapshot(colors[index]);
   Brain.Screen.clearScreen();
   Brain.Screen.setCursor(2, 1);
   Brain.Screen.print("x pos: %d", aiVision1.objects[0].centerX);
+  // the AI Vision Sensor automatically sorts objects by size. The largest object is assigned index 0, 
+  //with smaller objects receiving higher index numbers.
+  if (aiVision1.objectCount > 0) {
+      double wid = aiVision1.objects[0].width; // unit in pixels
+      int angle = aiVision1.objects[0].angle;
+      double disValue = Distance1.objectDistance(mm);
 
+    if (aiVision1.objects[0].id == 1){ // or == redRing 
+
+      Controller1.Screen.clearScreen();
+      Controller1.Screen.setCursor(1,1);
+      Controller1.Screen.print(" Largest OBJ: redRing") ;
+      Controller1.Screen.clearScreen();
+      Controller1.Screen.setCursor(2,1);
+      // Controller1.Screen.print("angle: %d, angle"， angle) ;
+      // width is: %.1f, angle: %d", wid, angle );
+    } 
+
+
+    else if (aiVision1.objects[0].id == 2){ // or == blueRing 
+
+      Controller1.Screen.clearScreen();
+      Controller1.Screen.setCursor(1,1);
+      Controller1.Screen.print(" Largest OBJ: blueRing");
+      Controller1.Screen.clearScreen();
+      Controller1.Screen.setCursor(2,1);
+      // Controller1.Screen.print("distance Value: %.1f mm "，disValue);
+      // , width is: %.1f, angle: %d, distan: %.1f", wid, angle, distan);
+    } 
+  }
+  else{
+    Controller1.Screen.clearScreen();
+    Controller1.Screen.setCursor(1,1);
+    Controller1.Screen.print("no obj found");
+  }
 }
 
 
+
+void setArmToHighest(){
+  Arm.spinToPosition(440.0, degrees, true);
+  Arm.setStopping(hold);
+}
 
 
 
@@ -277,7 +370,6 @@ void getDistance(){
       Brain.Screen.clearLine();
      Brain.Screen.print("distance : 0");
     }
-  
 }
 
 
@@ -290,29 +382,29 @@ void autonomous(void) {
 
 
       // Declare a pair to hold X and Y values
-  std::pair<double, double> XandY;
+//   std::pair<double, double> XandY;
 
-      // Call pairXY to get the x and y coordinates of object with id (which red is 1, blue is 2)
-  // XandY = pairXY(2);
+//       // Call pairXY to get the x and y coordinates of object with id (which red is 1, blue is 2)
+//   // XandY = pairXY(2);
 
-    // Access the x and y values
-    double X = XandY.first;   // Access the x value
-    double Y = XandY.second;  // Access the y value
+//     // Access the x and y values
+//     double X = XandY.first;   // Access the x value
+//     double Y = XandY.second;  // Access the y value
 
-// right0.0, left 315, center 157
-  if (X>170){ // obj is on the left side
-    //pct -> percentage
-    // LeftMotorA.setVelocity(30, pct);
-    // RightMotorA.setVelocity(30, pct);
-    rightDrive(30);
+// // right0.0, left 315, center 157
+//   if (X>170){ // obj is on the left side
+//     //pct -> percentage
+//     // LeftMotorA.setVelocity(30, pct);
+//     // RightMotorA.setVelocity(30, pct);
+//     rightDrive(30);
 
-  }
-  else if(X<145){ //obj is on the right side
-    leftDrive(30);
-  }
-  else {
-    printf("good");
-  }
+//   }
+//   else if(X<145){ //obj is on the right side
+//     leftDrive(30);
+//   }
+//   else {
+//     printf("good");
+//   }
 
 
 
@@ -362,7 +454,7 @@ int main() {
 
     RightMotorA.setStopping(brake);
     LeftMotorA.setStopping(brake);
-    Arm.setStopping(hold); // hold, brake, coast
+    // setArmToHighest(); // hold, brake, coast
     //FrontArm.setStopping(brake);
     tankDrive(-Controller1.Axis3.value(), Controller1.Axis2.value());
 
@@ -376,15 +468,19 @@ int main() {
 
 //Ai Vision calls
     // 0->redRing, 1-> bluering for index
-    aiObjCount(0); // ->red
-    aiGetXPos(0);
+    // aiObjCount(0); // ->red
+    aiGetXPos();
+      Arm.setStopping(hold);
+    FrontArm.setStopping(hold);
+
+
 
 
 
     
     // checkRedBlue();
     // printCenterXY(0);
-    getDistance();
+    // getDistance();
     
     wait(100, msec);
 
@@ -534,4 +630,3 @@ int main() {
 //     double centerY = position.second;
 
 // */
-
